@@ -18,12 +18,66 @@ This code enables tunneling of a single threaded TCP client / server socket inte
 
 * Docker 18+
 
-### Running the Docker Build
+### Using Pre-built Docker Images
 
+We provide several docker images on various platforms. Both x86 and ARM are supported, though armv7 is currently limited to the ubuntu images.
+There are two types of images: base images and release images.
+The base images come with all dependencies pre-installed. You will still need to download and build the source.
+These are useful if you want to modify and [compile](https://github.com/aws-samples/aws-iot-securetunneling-localproxy#download-and-build-the-local-proxy) the local proxy on your own, but are large (~1 GB each).
+You can find them at:
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-base
+- amd64/arm64/armv7
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/debian-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/amazonlinux-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubi8-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/fedora-base
+- amd64
+
+The release images are minimum size images that include a pre-built binary with no dependencies installed.
+Every tag contains a git commit sha for example: 33879dd7f1500f7b3e56e48ce8b002cd9b0f9e4e.
+You can cross-check the git commit sha with the commits in the local proxy repo to see if the binary contains changes added in a specific commit.
+You can find them at:
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin
+- amd64/arm64/armv7
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/debian-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/amazonlinux-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubi8-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/fedora-bin
+- amd64
+
+### Building a Docker Image
+
+If you do not want to use the prebuilt images, you can build them yourself:
+
+`cd .github/docker-images/base-images/<os of choice>`
+
+`docker build -t <your tag> .`
+
+Or, for the debian-ubuntu combined Dockerfile:
+
+`docker build -t <your tag> . --build-arg OS=<choice of debian/ubuntu>:latest`
+
+To build cross-platform images for ARM:
+
+`docker buildx --platform linux/arm64 -t <your tag> .`
+
+You may also try armv7 for 32 bit images, but supported functionality may be limited.
+
+After the Docker build completes, run `docker run --rm -it <tag>` to open a shell inside the container created in the
+previous step...
+
+Because it may not make practical sense to SSH into a docker container, you can transfer binaries by exposing your machine's filesystem to the containerized filesystem via bind mount. To bind mount a volume on your physical machine's current directory: 
+`docker run --rm -it -v $(pwd):/root <tag>`
+and you can add ` -p <port_number>` to expose a port from the docker container. Note that when the localproxy runs in source mode, it binds by default to `localhost`, If you want to access the localproxy from outside the container, make sure to use the option `-b 0.0.0.0` when you run the localproxy from the container so that it binds to `0.0.0.0` since `localhost` can not be access from outside the container.
+
+#### Deprecated Method
 `./docker-build.sh`
-
-After the Docker build completes, run `./docker-run.sh` to open a shell inside the container created in the
-previous step, or you can run `./docker-run.sh -p <port_number>` to expose a port from the docker container. Here you can find both the `localproxy` and `localproxytest` binaries. Note that when the localproxy runs in source mode, it binds by default to `localhost`, If you want to access the localproxy from outside the container, make sure to use the option `-b 0.0.0.0` when you run the localproxy from the container so that it binds to `0.0.0.0` since `localhost` can not be access from outside the container.
 
 ---
 
@@ -35,10 +89,10 @@ previous step, or you can run `./docker-run.sh -p <port_number>` to expose a por
 * C++ 14 compiler
 * CMake 3.6+
 * Development libraries required:
-    * Boost 1.76
+    * Boost 1.81
     * Protobuf 3.17.x
-    * zlib
-    * OpenSSL 1.0+
+    * zlib 1.12.13+
+    * OpenSSL 1.0+ OR OpenSSL 3
     * Catch2 test framework
 * Stage a dependency build directory and change directory into it:
     * `mkdir dependencies`
@@ -50,26 +104,27 @@ previous step, or you can run `./docker-run.sh -p <port_number>` to expose a por
 Note: This step may be simpler to complete via a native software application manager.
 
 Ubuntu example:
-`sudo apt install zlibc`
+`sudo apt install zlib1g`
 
 Fedora example:
 `dnf install zlib`
 
-    wget https://www.zlib.net/zlib-1.2.12.tar.gz -O /tmp/zlib-1.2.12.tar.gz
-    tar xzvf /tmp/zlib-1.2.12.tar.gz
-    cd zlib-1.2.12
+    wget https://www.zlib.net/zlib-1.2.13.tar.gz -O /tmp/zlib-1.2.13.tar.gz
+    tar xzvf /tmp/zlib-1.2.13.tar.gz
+    cd zlib-1.2.13
     ./configure
     make
     sudo make install
 
 #### 2. Download and install Boost dependency
 
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz -O /tmp/boost.tar.gz
+    wget https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz -O /tmp/boost.tar.gz
     tar xzvf /tmp/boost.tar.gz
-    cd boost_1_76_0
+    cd boost_1_81_0
     ./bootstrap.sh
     sudo ./b2 install link=static
 
+If you want to install an older version of boost, pass the version string through the cmake variable when compiling the local proxy: `-DBOOST_PKG_VERSION`
 #### 3. Download and install Protobuf dependency
 
     wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
@@ -81,6 +136,7 @@ Fedora example:
     make
     sudo make install
 
+If you want to install an older version of protobuf, pass the version string through the cmake variable when compiling the local proxy: `-DPROTOBUF_PKG_VERSION`
 #### 4. Download and install OpenSSL development libraries
 
 We strongly recommend installing OpenSSL development libraries using your native platform package manager so the local proxy's integration with OpenSSL can use the platform's globally configured root CAs.
@@ -299,7 +355,6 @@ After preparing this directory, point to it when running the local proxy with th
 
 * Avoid using the **-t** argument to pass in the access token. We recommend setting the **AWSIOT_TUNNEL_ACCESS_TOKEN** environment variable to specify the client access token with the least visibility
 * Run the local proxy executable with the least privileges in the OS or environment
-    * 
     * If your client application normally connects to a port less than 1024, this would normally require running the local proxy with admin privileges to listen on the same port. This can be avoided if the client application allows you to override the port to connect to. Choose any available port greater than 1024 for the source local proxy to listen to without administrator access. Then you may direct the client application to connect to that port. e.g. For connecting to a source local proxy with an SSH client, the local proxy can be run with `-s 5000` and the SSH client should be run with `-p 5000`
 * On devices with multiple network interfaces, use the **-b** argument to bind the TCP socket to a specific network address restricting the local proxy to only proxy connections on an intended network
 * Consider running the local proxy on separate hosts, containers, sandboxes, chroot jail, or a virtualized environment

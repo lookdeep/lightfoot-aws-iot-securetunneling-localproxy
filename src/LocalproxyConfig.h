@@ -9,6 +9,7 @@
 #include <vector>
 #include <queue>
 #include <memory>
+#include <unordered_map>
 #include <boost/log/trivial.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/optional.hpp>
@@ -57,7 +58,7 @@ namespace aws {
                 /**
                  * The web proxy endpoint port. This will be set only if a web proxy is necessary. defaults to 3128.
                  */
-                std::uint16_t                           web_proxy_port {0 };
+                std::uint16_t                           web_proxy_port { 0 };
                 /**
                  * The web proxy authN. This will be set only if an web proxy is necessary and it requires authN.
                  */
@@ -99,12 +100,17 @@ namespace aws {
                  * The end point will store either source listening or destination service depends on the mode of local proxy.
                  */
                 std::unordered_map<std::string, std::string>     serviceId_to_endpoint_map;
+
                 /**
                  * A flag to judge if v2 local proxy needs to fallback to communicate using v1 local proxy message format.
                  * v1 local proxy format fallback will be enabled when a tunnel is opened with no or 1 service id.
                  * If this is set to true, it means that v2 local proxy won't validate service id field.
                  */
                 bool                                             is_v1_message_format {false};
+                /**
+                 * A flag to judge if v3 local proxy needs to fallback to communicate using v2 local proxy message format.
+                 */
+                bool                                             is_v2_message_format {false};
             };
         }
     }
