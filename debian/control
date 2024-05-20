@@ -1,0 +1,30 @@
+Source: aws-iot-securetunneling-localproxy
+Maintainer: Detlev Casanova <detlev.casanova@collabora.com>
+Section: misc
+Priority: optional
+Standards-Version: 4.6.2
+Build-Depends:
+ debhelper (>= 13),
+ catch2,
+ cmake,
+ libboost-date-time-dev,
+ libboost-filesystem-dev,
+ libboost-log-dev,
+ libboost-program-options-dev,
+ libboost-system-dev,
+ libboost-thread-dev,
+ libprotobuf-dev,
+ libssl-dev,
+ protobuf-compiler,
+
+Package: localproxy
+Architecture: arm64 amd64
+Depends: 
+ libboost-date-time1.74.0,
+ libboost-filesystem1.74.0,
+ libboost-log1.74.0,
+ libboost-program-options1.74.0,
+ libboost-system1.74.0,
+ libboost-thread1.74.0
+Description: Example C++ implementation of a local proxy
+ for the AWS IoT Secure Tunneling service.

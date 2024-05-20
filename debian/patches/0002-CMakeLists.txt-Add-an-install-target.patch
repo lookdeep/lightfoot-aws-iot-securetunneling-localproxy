@@ -1,0 +1,19 @@
+From: Detlev Casanova <detlev.casanova@collabora.com>
+Date: Mon, 23 Jan 2023 11:57:33 -0500
+Subject: CMakeLists.txt: Add an install target
+
+Signed-off-by: Detlev Casanova <detlev.casanova@collabora.com>
+---
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8a1118b..39d1d39 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -113,3 +113,5 @@ target_link_libraries(${AWS_TUNNEL_LOCAL_PROXY_TEST_NAME} ${Protobuf_LITE_STATIC
+ 
+ set_property(TARGET ${AWS_TUNNEL_LOCAL_PROXY_TARGET_NAME} APPEND_STRING PROPERTY COMPILE_FLAGS ${CUSTOM_COMPILER_FLAGS})
+ set_property(TARGET ${AWS_TUNNEL_LOCAL_PROXY_TEST_NAME} APPEND_STRING PROPERTY COMPILE_FLAGS ${TEST_COMPILER_FLAGS})
++
++install(TARGETS ${AWS_TUNNEL_LOCAL_PROXY_TARGET_NAME})

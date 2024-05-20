@@ -1,0 +1,12 @@
+aws-iot-securetunneling-localproxy (3.0.2-2) apertis; urgency=medium
+
+  * debian/control: Use correct dependencies package names
+
+ -- Detlev Casanova <detlev.casanova@collabora.com>  Mon, 23 Jan 2023 16:03:32 -0500
+
+aws-iot-securetunneling-localproxy (3.0.2-1) apertis; urgency=medium
+
+  * Initial release of aws-iot-securetunneling-localproxy
+
+ -- Detlev Casanova <detlev.casanova@collabora.com>  Mon, 23 Jan 2023 11:30:38 -0500
+

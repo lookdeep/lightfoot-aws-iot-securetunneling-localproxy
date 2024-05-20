@@ -1,0 +1,25 @@
+From: Detlev Casanova <detlev.casanova@collabora.com>
+Date: Mon, 23 Jan 2023 11:33:12 -0500
+Subject: CMakeLists.txt: Allow Boost 1.74 as dependency
+
+Debian bookworm doean't provide Boost 1.76 and this is compatible with
+Boot 1.74.
+
+Signed-off-by: Detlev Casanova <detlev.casanova@collabora.com>
+---
+ CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6208b3e..8a1118b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -69,7 +69,7 @@ find_package(Catch2 REQUIRED)
+ set_property(GLOBAL PROPERTY Boost_USE_STATIC_LIBS ON)
+ set_property(GLOBAL PROPERTY Boost_USE_DEBUG_RUNTIME OFF)
+ #set_property(GLOBAL PROPERTY Boost_USE_MULTITHREADED ON)
+-find_package(Boost 1.76.0 REQUIRED COMPONENTS system log log_setup thread program_options date_time filesystem)
++find_package(Boost 1.74.0 REQUIRED COMPONENTS system log log_setup thread program_options date_time filesystem)
+ include_directories(${Boost_INCLUDE_DIRS})
+ foreach(BOOST_LIB ${Boost_LIBRARIES})
+     string(REPLACE ${CMAKE_SHARED_LIBRARY_SUFFIX} ${CMAKE_STATIC_LIBRARY_SUFFIX} BOOST_STATIC_LIB ${BOOST_LIB})
