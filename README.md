@@ -1,4 +1,12 @@
-## AWS IoT Secure Tunneling Local Proxy Reference Implementation C++
+
+## As of 3.1.2 May 2024 Update, `--destination-client-type V1` will be a required parameter when connecting with the following:
+- AWS IoT Device Client
+- AWS IoT Secure Tunneling Component OR Greengrass V2 Secure Tunneling Component
+- Browser-based Secure Tunneling from the AWS Console
+- Any Secure Tunneling demo code written before 2022
+- 1.x versions of the localproxy
+
+# AWS IoT Secure Tunneling Local Proxy Reference Implementation C++
 
 Example C++ implementation of a local proxy for the AWS IoT Secure Tunneling service
 
@@ -12,18 +20,88 @@ This code enables tunneling of a single threaded TCP client / server socket inte
 
 ---
 
+## Quick Start for x86 Linux platforms
+
+Install Docker https://docs.docker.com/get-started/get-docker/
+
+Then run `docker run --rm -it --network=host public.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin:amd64-latest`, and populate the missing required parameters. More details can be found in the sections below.
+
 ## Building the local proxy via Docker
 
 ### Prerequisites
 
 * Docker 18+
 
-### Running the Docker Build
+### Using Pre-built Docker Images
 
+We provide several docker images on various platforms. Both x86 and ARM are supported, though armv7 is currently limited to the ubuntu images.
+There are two types of images: base images and release images.
+The base images come with all dependencies pre-installed. You will still need to download and build the source. These images are tagged with their corresponding arch.
+These are useful if you want to modify and [compile](https://github.com/aws-samples/aws-iot-securetunneling-localproxy#download-and-build-the-local-proxy) the local proxy on your own, but are large (~1 GB each).
+You can find them at:
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-base
+- amd64/arm64/armv7
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/debian-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/amazonlinux-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubi8-base
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/fedora-base
+- amd64
+
+The release images are minimum size images that include a pre-built binary with only the necessary shared libs installed. To use the release images, simply pass the localproxy CLI args into the docker run command. Example:
+
+`docker run --rm -it --network=host public.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin:amd64-latest --region us-east-1 -s 5555 -t <ACCESS_TOKEN>`
+
+Sometimes there may be minute differences between the Ubuntu images depending on the arch, which may not end up giving openssl enough context about which cert stores to use for verifying server certificates. In such cases to avoid the SSL handshake failure we can provide the ssl certs path as well (`-c /etc/ssl/certs`). Example:
+
+`sudo docker run --rm -it --network=host public.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin:arm64-latest --region us-west-2 -s 5555  -c /etc/ssl/certs -t <ACCESS_TOKEN>`
+
+On MacOS, --network=host does not work the way you expect it would. instead, do `docker run --rm -it -p 5555:5555 public.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin:amd64-latest --region us-east-1 -b 0.0.0.0 -s 5555 -t <ACCESS_TOKEN>`
+
+This will automatically pull down the latest docker image and run the localproxy without having to manually install it on your system.
+These images are tagged with the git commit and corresponding arch. Example: 33879dd7f1500f7b3e56e48ce8b002cd9b0f9e4e-amd64.
+You can cross-check the git commit sha with the commits in the local proxy repo to see if the binary contains changes added in a specific commit.
+The release images can be found at:
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubuntu-bin
+- amd64/arm64/armv7
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/debian-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/amazonlinux-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/ubi8-bin
+- amd64/arm64
+#### https://gallery.ecr.aws/aws-iot-securetunneling-localproxy/fedora-bin
+- amd64
+
+### Building a Docker Image
+
+If you do not want to use the prebuilt images, you can build them yourself:
+
+`cd .github/docker-images/base-images/<os of choice>`
+
+`docker build -t <your tag> .`
+
+Or, for the debian-ubuntu combined Dockerfile:
+
+`docker build -t <your tag> . --build-arg OS=<choice of debian/ubuntu>:<platform>`
+
+To build cross-platform images for ARM:
+
+`docker buildx --platform linux/arm64 -t <your tag> .`
+
+You may also try armv7 for 32 bit images, but supported functionality may be limited.
+
+After the Docker build completes, run `docker run --rm -it <tag>` to open a shell inside the container created in the
+previous step...
+
+Because it may not make practical sense to SSH into a docker container, you can transfer binaries by exposing your machine's filesystem to the containerized filesystem via bind mount. To bind mount a volume on your physical machine's current directory: 
+`docker run --rm -it -v $(pwd):/root <tag>`
+and you can add ` -p <port_number>` to expose a port from the docker container. Note that when the localproxy runs in source mode, it binds by default to `localhost`, If you want to access the localproxy from outside the container, make sure to use the option `-b 0.0.0.0` when you run the localproxy from the container so that it binds to `0.0.0.0` since `localhost` can not be access from outside the container.
+
+#### Deprecated Method
 `./docker-build.sh`
-
-After the Docker build completes, run `./docker-run.sh` to open a shell inside the container created in the
-previous step, or you can run `./docker-run.sh -p <port_number>` to expose a port from the docker container. Here you can find both the `localproxy` and `localproxytest` binaries. Note that when the localproxy runs in source mode, it binds by default to `localhost`, If you want to access the localproxy from outside the container, make sure to use the option `-b 0.0.0.0` when you run the localproxy from the container so that it binds to `0.0.0.0` since `localhost` can not be access from outside the container.
 
 ---
 
@@ -31,13 +109,14 @@ previous step, or you can run `./docker-run.sh -p <port_number>` to expose a por
 
 ### Prerequisites
 
+* Minimum System Requirements: >8GB of disk space and >1GB of RAM. We recommended building elsewhere and importing the binary if your device does not meet these requirements.
 * C++ 14 compiler
 * CMake 3.6+
 * Development libraries required:
-    * Boost 1.76
+    * Boost 1.87
     * Protobuf 3.17.x
     * zlib 1.12.13+
-    * OpenSSL 1.0+
+    * OpenSSL 1.0+ OR OpenSSL 3
     * Catch2 test framework
 * Stage a dependency build directory and change directory into it:
     * `mkdir dependencies`
@@ -49,7 +128,7 @@ previous step, or you can run `./docker-run.sh -p <port_number>` to expose a por
 Note: This step may be simpler to complete via a native software application manager.
 
 Ubuntu example:
-`sudo apt install zlibc`
+`sudo apt install zlib1g`
 
 Fedora example:
 `dnf install zlib`
@@ -63,12 +142,13 @@ Fedora example:
 
 #### 2. Download and install Boost dependency
 
-    wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz -O /tmp/boost.tar.gz
-    tar xzvf /tmp/boost.tar.gz
-    cd boost_1_76_0
+    wget https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz -O /tmp/boost_1_87_0.tar.gz
+    tar xzvf /tmp/boost_1_87_0.tar.gz
+    cd boost_1_87_0
     ./bootstrap.sh
     sudo ./b2 install link=static
 
+If you want to install an older version of boost, pass the version string through the cmake variable when compiling the local proxy: `-DBOOST_PKG_VERSION`
 #### 3. Download and install Protobuf dependency
 
     wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
@@ -80,6 +160,7 @@ Fedora example:
     make
     sudo make install
 
+If you want to install an older version of protobuf, pass the version string through the cmake variable when compiling the local proxy: `-DPROTOBUF_PKG_VERSION`
 #### 4. Download and install OpenSSL development libraries
 
 We strongly recommend installing OpenSSL development libraries using your native platform package manager so the local proxy's integration with OpenSSL can use the platform's globally configured root CAs.
@@ -101,9 +182,12 @@ Source install example:
 
 Run the ./Configure command without any arguments to check the available platform configuration options and the documentation here: https://wiki.openssl.org/index.php/Compilation_and_Installation
 
+##### Static vs. Dynamic linking OpenSSL
+In the `CMakeLists.txt`, we provide a parameter -DLINK_STATIC_OPENSSL which by default is set to ON. You may link against shared libraries on your system by setting the value to OFF. Choosing to do so is completely optional depending on your own operational requirements. This is following guidance from https://github.com/aws-samples/aws-iot-securetunneling-localproxy/pull/145.
+
 #### 5. Download and install Catch2 test framework
 
-    git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git
+    git clone --branch v3.7.0 https://github.com/catchorg/Catch2.git
     cd Catch2
     mkdir build
     cd build
@@ -173,17 +257,41 @@ V1 local proxy: local proxy uses Sec-WebSocket-Protocol _aws.iot.securetunneling
 
 V2 local proxy: local proxy uses Sec-WebSocket-Protocol _aws.iot.securetunneling-2.0_ when communicates with AWS IoT Tunneling Service.
 
+V3 local proxy: local proxy uses Sec-WebSocket-Protocol _aws.iot.securetunneling-3.0_ when communicates with AWS IoT Tunneling Service.
+
 Source local proxy: local proxy that runs in source mode.
 
 Destination local proxy:  local proxy that runs in destination mode.
 
 
+### As of December 2024, the following software distributions only support the V1 protocol:
+- AWS IoT Device Client
+- AWS IoT Secure Tunneling Component OR Greengrass V2 Secure Tunneling Component
+- Browser-based Secure Tunneling from the AWS Console
+- Any Secure Tunneling demo code written before 2022
+- 1.x versions of the localproxy
+
+**Hence a device using any of the above mentioned variations as one end of the secure tunnel is actually using the V1 protocol for connection to the tunnel.**
+
 ### Multi-port tunneling feature support
-Multi-port tunneling feature allows more than one stream multiplexed on same tunnel. 
-This feature is only supported with V2 local proxy. If you have some devices that on V1 local proxy, some on V2 local proxy, simply upgrade the local proxy on the source device to V2 local proxy. When V2 local proxy talks to V1 local proxy, the backward compatibility is maintained. For more details, please refer to section [backward compatibility](#backward-compatibility)
+Multi-port tunneling feature allows more than one data stream multiplexed on same tunnel. 
+This feature is only supported with V2 (and V3) local proxy. If you have a device at one end of the tunnel using V1 local proxy, and the device at the other end using V2 local proxy, i.e. when V2 local proxy talks to V1 local proxy, the backward compatibility is maintained. For more details, please refer to section [backward compatibility](#backward-compatibility)
+and 
+[devices supporting V1 protocol](#as-of-december-2024-the-following-software-distributions-only-support-the-v1-protocol).
+
+Note that eventhough backward compatibility is maintained here, this connection is only viable **given you are trying to establish only a single stream over single service connection over the tunnel.**
+
+### Simultaneous TCP connections feature support
+Simultaneous TCP is a feature that allows application layer (e.g. HTTP) protocols to open multiple TCP connections over a single stream.
+This feature is only supported with V3 local proxy. If you have some device using V1/V2 local proxy, and the other end device using  V3 local proxy, i.e. when V3 local proxy talks to V1/V2 local proxy, the backward compatibility is maintained as long as users specify `V1` or `V2` as the value for `destination-client-type`. For more details, please refer to section [backward compatibility](#backward-compatibility)
+and 
+[devices supporting V1 protocol](#as-of-december-2024-the-following-software-distributions-only-support-the-v1-protocol).
+
+Note that eventhough backward compatibility is maintained here, this connection is only viable **given you are trying to establish only a single stream over single service connection over the tunnel in case of V3 talking to V1 protocol OR you are trying to establish multiple services connections (each with single stream only) in case of V3 talking to V2 protocol.**
 
 ### Service identifier (Service ID)
 If you need to use multi-port tunneling feature, service ID is needed to start local proxy. A service identifier will be used as the new format to specify the source listening port or destination service when start local proxy. The identifier is like an alias for the source listening port or destination service. For the format requirement of service ID, please refer to AWS public doc [services in DestinationConfig ](https://docs.aws.amazon.com/iot/latest/apireference/API_iot-secure-tunneling_DestinationConfig.html). There is no restriction on how this service ID should be named, as long as it can help uniquely identifying a connection or stream. 
+A maximum of 3 service IDs can be configured while creating a Secure Tunnel (as of December 2024).
 
 Example 1: _SSH1_
 
@@ -266,6 +374,16 @@ Example 3:
     aws iotsecuretunneling open-tunnel 
 
 In this example, no service ID is used. Backward compatibility is supported.
+
+V3 local proxy is able to communicate with V1 and V2 local proxy if only one connection/stream needs to be established over the tunnel. When connecting to older versions, you will need to pass the `destination-client-type` CLI arg if and only if starting the localproxy in source mode. The same rules listed above still apply when connecting over V1.
+
+Example when targeting a V1 destination, like Device Client of the Greengrass Secure Tunneling Component: 
+
+    ./localproxy -s 3333 --destination-client-type V1 -v 6 -r us-east-1
+
+Example when targeting a V2 destination:
+   
+    ./localproxy -s 3333 --destination-client-type V2 -v 6 -r us-east-1
 
 ### HTTP proxy Support
 
@@ -389,6 +507,9 @@ Specifies the verbosity of the output. Value must be between 0-255, however mean
 
 **-m/--mode [argvalue]**
 Specifies the mode local proxy will run. Accepted values are: src, source, dst, destination.
+
+**-y/--destination-client-type [argvalue]**
+Specifies the backward compatibility mode the local proxy will run when opening a source connection to an older destination client. Currently supported values are: V1, V2. The localproxy will assume the destination to be V3 if no/invalid value is passed.
 
 **--config-dir [argvalue]**
 Specifies the configuration directory where service identifier mappings are configured. If this parameter is not specified, local proxy will read configuration files from default directory _./config_, under the file path where `localproxy` binary are located. 
@@ -526,7 +647,9 @@ Follow instructions in [here](windows-localproxy-build.md) to build a local prox
 If the tunnel multi-port feature is enabled, multiplexed tunnels have the same bandwidth limit as non-multiplexed tunnels. This limit is mentioned in [AWS public doc](https://docs.aws.amazon.com/general/latest/gr/iot_device_management.html) section **AWS IoT Secure Tunneling**, row _Maximum bandwidth per tunnel_. The bandwidth for a multiplexed tunnel is the bandwidth consumed by all active streams that transfer data over the tunnel connection. If you need this limit increased, please reach out to AWS support and ask for a limit increase. 
 
 #### Service ID limits 
-There are limits on the maximum streams that can be multiplexed on a tunnel connection. This limit is mentioned in [AWS public doc](https://docs.aws.amazon.com/general/latest/gr/iot_device_management.html) section **AWS IoT Secure Tunneling**, row _Maximum services per tunnel_. If you need this limit increased, please reach out to AWS support and ask for a limit increase.	
+There are limits on the maximum streams that can be multiplexed on a tunnel connection. This limit is mentioned in [AWS public doc](https://docs.aws.amazon.com/general/latest/gr/iot_device_management.html) section **AWS IoT Secure Tunneling**, row _Maximum services per tunnel_. 
+As of December 2024, this limit is set to 3 Service IDs per tunnel.
+If you need this limit increased, please reach out to AWS support and ask for a limit increase.	
 
 #### Load balancing in multiplexed streams  
 If more than one stream is transferred at the same time, local proxy will not load balance between these streams. If you have one stream that is dominating the bandwidth, the other streams sharing the same tunnel connection may see latency of data packet delivery. 

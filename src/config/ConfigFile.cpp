@@ -1,15 +1,10 @@
 // Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
-#include <cstdlib>
 #include <chrono>
 #include <algorithm>
 #include <functional>
 #include <iostream>
-#include <string>
-#include <utility>
 #include <tuple>
-#include <unordered_map>
-#include <unordered_set>
 
 #include <boost/phoenix.hpp>
 #include <boost/program_options.hpp>
@@ -30,8 +25,10 @@
 #include <boost/log/trivial.hpp>
 #include <boost/log/sources/severity_feature.hpp>
 #include <boost/log/sources/severity_logger.hpp>
+#include <boost/format.hpp>
 
 #include "ConfigFile.h"
+#include "Version.h"
 
 using std::uint16_t;
 using std::endl;
@@ -61,6 +58,12 @@ namespace aws { namespace iot { namespace securedtunneling { namespace config_fi
      * @param file_dir : directory file path
      * @return true: valid configuration. false: invalid configuration
      */
+
+    std::string PrintVersion()
+    {
+        return LOCAL_PROXY_VERSION_FULL;
+    }
+
     bool is_valid_directory(string const & file_dir) {
         bool is_dir = false;
         try {

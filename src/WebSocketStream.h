@@ -142,15 +142,16 @@ namespace aws {
                  * proxy server and the localproxy.
                  * @param callback the SSL callback.
                  */
-                void set_verify_callback(const ssl::rfc2818_verification &callback);
+                void set_verify_callback(const ssl::host_name_verification &callback);
 
                 /**
                  * Performs the SSL handshake between the localproxy and the proxy server asynchronously.
                  * @param type The handshake type
+                 * @param host the host subdoman and domain
                  * @param handler the callback handler when the async operation is complete.
                  */
                 void
-                async_ssl_handshake(const ssl::stream_base::handshake_type &type, const BoostCallbackFunc &handler);
+                async_ssl_handshake(const ssl::stream_base::handshake_type &type, const std::string &host, const BoostCallbackFunc &handler);
 #endif
 
                 /**

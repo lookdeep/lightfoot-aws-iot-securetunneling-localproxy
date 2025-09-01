@@ -8,6 +8,7 @@
 #include <vector>
 #include <queue>
 #include <memory>
+#include <unordered_set>
 #include <boost/log/trivial.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/optional.hpp>
@@ -15,7 +16,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 #include <boost/asio.hpp>
-#include <boost/asio/ssl/rfc2818_verification.hpp>
+#include <boost/asio/ssl/host_name_verification.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/format.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -124,7 +125,7 @@ namespace aws { namespace iot { namespace securedtunneling {
             //necessary for better TCP socket recovery rather than destroying
             //what's in the buffer
             //flag neccessary to know on TCP resets whether or not web socket
-            //has a current read (usually should, but may not if 
+            //has a current read (usually should, but may not if
             bool                                                    is_web_socket_reading;
             bool                                                    is_service_ids_received;
             std::queue<data_message>                                web_socket_outgoing_message_queue;
@@ -187,7 +188,7 @@ namespace aws { namespace iot { namespace securedtunneling {
         //sets up a web socket read loop that will read, and ignore most messages until a stream start
         //is read and then do something with it (likely, connect to configured endpoint)
         void async_web_socket_read_until_stream_start(tcp_adapter_context &tac, std::string const & service_id);
-        
+
         //setup async web socket repeat loop
         void async_web_socket_read_loop(tcp_adapter_context &tac);
         void async_web_socket_read_loop_for_service_ids(tcp_adapter_context &tac);
@@ -237,7 +238,7 @@ namespace aws { namespace iot { namespace securedtunneling {
         void async_send_message(tcp_adapter_context &tac, message const &message);
         void async_send_message(tcp_adapter_context &tac, message const &message, std::string const & service_id, uint32_t const & connection_id);
         void async_send_stream_start(tcp_adapter_context &tac, std::string const & service_id, uint32_t const & connection_id);
-        void async_send_stream_reset(tcp_adapter_context &tac, std::string const & service_id, uint32_t const & connection_id);
+        void async_send_stream_reset(tcp_adapter_context &tac, std::string const & service_id);
         void async_send_connection_start(tcp_adapter_context &tac, std::string const & service_id, uint32_t const & connection_id);
         void async_send_connection_reset(tcp_adapter_context &tac, std::string const & service_id, uint32_t const & connection_id);
 

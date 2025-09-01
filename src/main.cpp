@@ -9,7 +9,6 @@
 #include <utility>
 #include <tuple>
 
-#include <boost/phoenix.hpp>
 #include <boost/program_options.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -21,6 +20,7 @@
 #include <boost/log/utility/setup/common_attributes.hpp>
 #include <boost/log/expressions.hpp>
 #include <boost/uuid/uuid.hpp>
+#include <boost/log/support/date_time.hpp>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/regex.hpp>
@@ -29,6 +29,7 @@
 #include "TcpAdapterProxy.h"
 #include "config/ConfigFile.h"
 #include "LocalproxyConfig.h"
+#include "./config/ConfigFile.h"
 
 using std::uint16_t;
 using std::endl;
@@ -50,6 +51,7 @@ using aws::iot::securedtunneling::tcp_adapter_proxy;
 using aws::iot::securedtunneling::proxy_mode;
 using aws::iot::securedtunneling::get_region_endpoint;
 using aws::iot::securedtunneling::settings::apply_region_overrides;
+using aws::iot::securedtunneling::config_file::PrintVersion;
 
 char const * const ACCESS_TOKEN_ENV_VARIABLE = "AWSIOT_TUNNEL_ACCESS_TOKEN";
 char const * const CLIENT_TOKEN_ENV_VARIABLE = "AWSIOT_TUNNEL_CLIENT_TOKEN";
@@ -99,41 +101,52 @@ void log_formatter(boost::log::formatting_ostream& strm, boost::log::record_view
         " " << rec["Message"].extract<std::string>();
 }
 
-void set_logging_filter(std::uint16_t level_numeric)
-{
-    level_numeric = level_numeric > 6 ? 6 : level_numeric;
-
-    switch (level_numeric)
-    {
-    case 6:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::trace);
-        break;
-    case 5:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::debug);
-        break;
-    case 4:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::info);
-        break;
-    case 3:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::warning);
-        break;
-    case 2:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::error);
-        break;
-    case 1:
-        boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::fatal);
-        break;
-    case 0:
-        boost::log::core::get()->set_logging_enabled(false);
-        break;
-    }
-}
-
 void init_logging(std::uint16_t &logging_level)
 {
     boost::log::add_common_attributes();
-    boost::log::add_console_log(std::cout, boost::log::keywords::format = boost::phoenix::bind(&log_formatter, boost::log::expressions::stream, boost::log::expressions::record));
-    set_logging_filter(logging_level);
+    logging_level = logging_level > 6 ? 6 : logging_level;
+
+    switch (logging_level)
+    {
+        case 6:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::trace);
+            break;
+        case 5:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::debug);
+            break;
+        case 4:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::info);
+            break;
+        case 3:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::warning);
+            break;
+        case 2:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::error);
+            break;
+        case 1:
+            boost::log::core::get()->set_filter(boost::log::trivial::severity >= boost::log::trivial::fatal);
+            break;
+        case 0:
+            boost::log::core::get()->set_logging_enabled(false);
+            break;
+    }
+
+    /* log formatter:
+     * [TimeStamp] [ThreadId] [Severity Level] [Scope] Log message
+     */
+    auto fmtTimeStamp = boost::log::expressions::
+    format_date_time<boost::posix_time::ptime>("TimeStamp", "%Y-%m-%d %H:%M:%S.%f");
+    auto fmtThreadId = boost::log::expressions::
+    attr<boost::log::attributes::current_thread_id::value_type>("ThreadID");
+    auto fmtSeverity = boost::log::expressions::
+    attr<boost::log::trivial::severity_level>("Severity");
+    boost::log::formatter logFmt =
+            boost::log::expressions::format("[%1%] (%2%) [%3%] %4%")
+            % fmtTimeStamp % fmtThreadId % fmtSeverity % boost::log::expressions::smessage;
+
+    auto consoleSink = boost::log::add_console_log(std::clog);
+    consoleSink->set_formatter(logFmt);
+
 }
 
 bool process_cli(int argc, char ** argv, LocalproxyConfig &cfg, ptree &settings, std::uint16_t &logging_level)
@@ -147,6 +160,7 @@ bool process_cli(int argc, char ** argv, LocalproxyConfig &cfg, ptree &settings,
     options_description cliargs_desc("Allowed options");
     cliargs_desc.add_options()
         ("help,h", "Show help message")
+        ("version", "Show current version of Local Proxy")
         ("access-token,t", value<string>()->required(), "Client access token")
         ("client-token,i", value<string>(), "Optional Client Token")
         ("proxy-endpoint,e", value<string>(), "Endpoint of proxy server with port (if not default 443). Example: data.tunneling.iot.us-east-1.amazonaws.com:443")
@@ -161,10 +175,15 @@ bool process_cli(int argc, char ** argv, LocalproxyConfig &cfg, ptree &settings,
         ("config", value<string>(), "Use the supplied configuration file to apply CLI args. Actual CLI args override the contents of this file")
         ("verbose,v", value<std::uint16_t>()->default_value(4), "Logging level to standard out. [0, 255] (0=off, 1=fatal, 2=error, 3=warning, 4=info, 5=debug, >=6=trace)")
         ("mode,m", value<string>(), "The mode local proxy will run: src(source) or dst(destination)")
+        ("destination-client-type,y", value<string>(), "Specify the value V1 or V2 to run the localproxy in compatibility mode with older clients. This should only be used when running localproxy in source mode.")
         ("config-dir", value<string>(), "Set the configuration directory where service identifier mappings are stored. If not specified, will read mappings from default directory ./config (same directory where local proxy binary is running)")
         ;
     store(parse_command_line(argc, argv, cliargs_desc), vm);
 
+    if (vm.count("version"))
+    {
+        PrintVersion();
+    }
     if (vm.count("help"))
     {
         std::cerr << cliargs_desc << "\n";
@@ -294,6 +313,25 @@ bool process_cli(int argc, char ** argv, LocalproxyConfig &cfg, ptree &settings,
         }
     }
 
+    if (vm.count("destination-client-type"))
+    {
+        string type = vm["destination-client-type"].as<string>();
+        if (type == "V1")
+        {
+            BOOST_LOG_TRIVIAL(info) << "setting source protocol to V1";
+            cfg.is_v1_message_format = true;
+        }
+        else if (type == "V2")
+        {
+            BOOST_LOG_TRIVIAL(info) << "setting source protocol to V2";
+            cfg.is_v2_message_format = true;
+        }
+        else
+        {
+            BOOST_LOG_TRIVIAL(warning) << "unknown value for destination-client-type, assuming default protocol V3.";
+        }
+    }
+
     /** Invalid input combination for: -s, -d and --mode
      * 1. -s and -d should NOT used together
      * 2. -s and mode value is dst/destination should NOT used together
@@ -394,13 +432,16 @@ int main(int argc, char ** argv)
 {
     try
     {
+        
+        std::string version = PrintVersion();
+        std::cout << "Running AWS IoT Secure Tunneling Local Proxy version: " << version << std::endl;    
+
         LocalproxyConfig cfg;
         ptree settings;
         std::uint16_t logging_level;
 
         if (process_cli(argc, argv, cfg, settings, logging_level))
         {
-            set_logging_filter(logging_level);
             tcp_adapter_proxy proxy{ settings, cfg };
             return proxy.run_proxy();
         }

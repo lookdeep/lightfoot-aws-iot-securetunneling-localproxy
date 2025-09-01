@@ -9,6 +9,7 @@
 #include <vector>
 #include <queue>
 #include <memory>
+#include <unordered_map>
 #include <boost/log/trivial.hpp>
 #include <boost/log/sources/severity_logger.hpp>
 #include <boost/optional.hpp>
@@ -16,7 +17,7 @@
 #include <boost/beast/websocket.hpp>
 #include <boost/beast/websocket/ssl.hpp>
 #include <boost/asio.hpp>
-#include <boost/asio/ssl/rfc2818_verification.hpp>
+#include <boost/asio/ssl/host_name_verification.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/format.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -99,6 +100,7 @@ namespace aws {
                  * The end point will store either source listening or destination service depends on the mode of local proxy.
                  */
                 std::unordered_map<std::string, std::string>     serviceId_to_endpoint_map;
+
                 /**
                  * A flag to judge if v2 local proxy needs to fallback to communicate using v1 local proxy message format.
                  * v1 local proxy format fallback will be enabled when a tunnel is opened with no or 1 service id.

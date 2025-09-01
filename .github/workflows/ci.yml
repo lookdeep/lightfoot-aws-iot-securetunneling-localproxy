@@ -1,5 +1,9 @@
 name: CI
 
+permissions:
+  contents: read
+  actions: write
+
 on:
   push:
     branches:
@@ -15,95 +19,107 @@ jobs:
   osx:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
-      name: 'Checkout'
-    - name: Install brew dependencies
-      run: |
-        brew install openssl@1.1 zlib cmake wget
-    - name: Install boost
-      working-directory: ${{ github.workspace }}
-      run: |
-        wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz -O /tmp/boost.tar.gz
-        tar xzvf /tmp/boost.tar.gz
-        cd boost_1_76_0
-        ./bootstrap.sh --with-toolset=clang
-        ./b2 install toolset=clang link=static
-    - name: Install protobuf
-      working-directory: ${{ github.workspace }}
-      run: |
-        wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
-        tar xzvf /tmp/protobuf-all-3.17.3.tar.gz
-        cd protobuf-3.17.3
-        mkdir build_make
-        cd build_make
-        cmake ../cmake
-        make
-        make install
-    - name: Install Catch2
-      working-directory: ${{ github.workspace }}
-      run: |
-        git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git
-        cd Catch2
-        mkdir build
-        cd build
-        cmake ../
-        make
-        make install
-    - name: Building localproxy
-      working-directory: ${{ github.workspace }}
-      run: |
-        mkdir build
-        cd build
-        cmake .. -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl@1.1/1.1.1q/ -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl@1.1/1.1.1q/lib/
-        make
+      - uses: actions/checkout@v3
+        name: 'Checkout'
+        with:
+          fetch-depth: 0  # Fetch all history
+      - name: List tags
+        run: |
+              git tag
+      - name: Install brew dependencies
+        run: |
+          brew install openssl@1.1 zlib cmake wget
+      - name: Install boost
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz -O /tmp/boost_1_87_0.tar.gz
+          tar xzvf /tmp/boost_1_87_0.tar.gz
+          cd boost_1_87_0
+          ./bootstrap.sh --with-toolset=clang
+          sudo ./b2 install toolset=clang link=static
+      - name: Install protobuf
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
+          tar xzvf /tmp/protobuf-all-3.17.3.tar.gz
+          cd protobuf-3.17.3
+          mkdir build_make
+          cd build_make
+          cmake ../cmake
+          make
+          sudo make install
+      - name: Building localproxy
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DBUILD_TESTS=OFF -DOPENSSL_ROOT_DIR=/usr/local/Cellar/openssl@1.1/1.1.1t/ -DOPENSSL_LIBRARIES=/usr/local/Cellar/openssl@1.1/1.1.1t/lib/
+          make
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localproxy-mac
+          path: ${{ github.workspace }}/build/bin/localproxy
   ubuntu:
     runs-on: ubuntu-latest
+    if: (github.event_name == 'push') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository))
     steps:
-    - name: 'Checkout'
-      uses: actions/checkout@v2
-    - name: Install apt-get dependencies
-      run: |
-        sudo apt-get install -y build-essential git python3-dev
-        sudo apt-get install -y wget tar zlib1g-dev libssl-dev openssl cmake
-        sudo apt-get clean -y
-    - name: Install boost
-      working-directory: ${{ github.workspace }}
-      run: |
-        wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz -O /tmp/boost.tar.gz
-        tar xzvf /tmp/boost.tar.gz
-        cd boost_1_76_0
-        ./bootstrap.sh
-        sudo ./b2 install link=static
-    - name: Install protobuf
-      working-directory: ${{ github.workspace }}
-      run: |
-        wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
-        tar xzvf /tmp/protobuf-all-3.17.3.tar.gz
-        cd protobuf-3.17.3
-        mkdir build_make
-        cd build_make
-        cmake ../cmake
-        make
-        sudo make install
-    - name: install Catch2
-      working-directory: ${{ github.workspace }}
-      run: |
-        git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git
-        cd Catch2
-        mkdir build
-        cd build
-        cmake ../
-        make
-        sudo make install
-    - name: Building localproxy
-      working-directory: ${{ github.workspace }}
-      run: |
-        mkdir build
-        cd build
-        cmake ..
-        make
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history
+      - name: List tags
+        run: |
+            git tag
+      - name: Install apt-get dependencies
+        run: |
+          sudo apt-get install -y build-essential git python3-dev
+          sudo apt-get install -y wget tar zlib1g-dev libssl-dev openssl cmake
+          sudo apt-get clean -y
+      - name: Install boost
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz -O /tmp/boost_1_87_0.tar.gz
+          tar xzvf /tmp/boost_1_87_0.tar.gz
+          cd boost_1_87_0
+          ./bootstrap.sh
+          sudo ./b2 install link=static
+      - name: Install protobuf
+        working-directory: ${{ github.workspace }}
+        run: |
+          wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz
+          tar xzvf /tmp/protobuf-all-3.17.3.tar.gz
+          cd protobuf-3.17.3
+          mkdir build_make
+          cd build_make
+          cmake ../cmake
+          make
+          sudo make install
+      - name: install Catch2
+        working-directory: ${{ github.workspace }}
+        run: |
+          git clone --branch v3.7.0 https://github.com/catchorg/Catch2.git
+          cd Catch2
+          mkdir build
+          cd build
+          cmake ../
+          make
+          sudo make install
+      - name: Building localproxy
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DBUILD_TESTS=OFF
+          make
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localproxy-ubuntu
+          path: ${{ github.workspace }}/build/bin/localproxy
   windows:
     runs-on: windows-2019
+    if: (github.event_name == 'push') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository))
     steps:
       - name: Setup developer command prompt
         uses: ilammy/msvc-dev-cmd@v1
@@ -115,16 +131,16 @@ jobs:
           Invoke-WebRequest "https://www.nasm.us/pub/nasm/releasebuilds/2.15.05/win64/nasm-2.15.05-win64.zip" -OutFile "nasm-2.15.05-win64.zip"
           Expand-Archive "nasm-2.15.05-win64.zip" -Force -DestinationPath "C:\NASM"
           $env:Path += ";C:\NASM\nasm-2.15.05\"
-          git clone https://github.com/openssl/openssl.git
-          cd openssl
-          git checkout OpenSSL_1_1_1-stable
+          Invoke-WebRequest "https://github.com/openssl/openssl/archive/refs/tags/openssl-3.0.12.zip" -OutFile "openssl-3.0.12.zip"
+          Expand-Archive "openssl-3.0.12.zip" -Force
+          cd .\openssl-3.0.12\openssl-openssl-3.0.12\
           perl Configure VC-WIN64A
           nmake
           nmake install
           $env:Path += ";C:\Program Files\OpenSSL\bin"
       - name: Install Catch2
         run: |
-          git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git
+          git clone --branch v3.7.0 https://github.com/catchorg/Catch2.git
           cd Catch2
           mkdir build
           cd build
@@ -143,11 +159,11 @@ jobs:
           $env:Path += ";C:\Program Files (x86)\zlib\bin"
       - name: Install boost
         run: |
-          Invoke-WebRequest "https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.zip" -OutFile "boost_1_76_0.zip"
-          Expand-Archive "boost_1_76_0.zip" -Force
-          cd .\boost_1_76_0\boost_1_76_0\
+          Invoke-WebRequest "https://archives.boost.io/release/1.87.0/source/boost_1_87_0.zip" -OutFile "boost_1_87_0.zip"
+          Expand-Archive "boost_1_87_0.zip" -Force
+          cd .\boost_1_87_0\boost_1_87_0\
           .\bootstrap.bat
-          .\b2 toolset=msvc-14.2 address-model=64 install define=BOOST_WINAPI_VERSION_WIN10 link=static
+          .\b2 toolset=msvc-14.2 address-model=64 install define=_WIN32_WINNT=0x0601 define=BOOST_WINAPI_VERSION_WIN7 link=static
       - name: Install protobuf
         run: |
           cd \
@@ -161,11 +177,21 @@ jobs:
           nmake install
           $env:Path += ";C:\Program Files (x86)\protobuf\bin"
       - name: 'Checkout'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history
+      - name: List tags
+        run: |
+            git tag
       - name: Build localproxy
         working-directory: ${{ github.workspace }}
         run: |
           mkdir build
           cd build
-          cmake -DWIN32_WINNT=0x0A00 -DBoost_USE_STATIC_LIBS=ON -DCMAKE_PREFIX_PATH="C:\Boost;C:\Program Files (x86)\Catch2;C:\Program Files (x86)\protobuf;C:\Program Files\OpenSSL" -G "Visual Studio 16 2019" -A x64 ..\
+          cmake -DBUILD_TESTS=OFF -DLINK_STATIC_OPENSSL=OFF -DBOOST_PKG_VERSION=1.84.0 -DWIN32_WINNT=0x0601 -DBoost_USE_STATIC_LIBS=ON -DCMAKE_PREFIX_PATH="C:\Boost;C:\Program Files (x86)\Catch2;C:\Program Files (x86)\protobuf;C:\Program Files\OpenSSL" -G "Visual Studio 16 2019" -A x64 ..\
           msbuild localproxy.vcxproj -p:Configuration=Release
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: localproxy-windows
+          path: ${{ github.workspace }}\build\bin\Release\localproxy.exe

@@ -1,4 +1,4 @@
-# FROM amazonlinux:latest
+# FROM amazonlinux:2
 FROM amazonlinux:latest as builder
 ARG OPENSSL_CONFIG
 
@@ -14,7 +14,7 @@ RUN yum check-update; yum upgrade -y && \
 RUN mkdir /home/dependencies
 WORKDIR /home/dependencies
 
-RUN wget https://www.zlib.net/zlib-1.2.13.tar.gz -O /tmp/zlib-1.2.13.tar.gz && \
+RUN wget https://github.com/madler/zlib/archive/v1.2.13.tar.gz -O /tmp/zlib-1.2.13.tar.gz && \
 	tar xzvf /tmp/zlib-1.2.13.tar.gz && \
 	cd zlib-1.2.13 && \
 	./configure && \
@@ -22,9 +22,9 @@ RUN wget https://www.zlib.net/zlib-1.2.13.tar.gz -O /tmp/zlib-1.2.13.tar.gz && \
 	make install && \
 	cd /home/dependencies
 
-RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.76.0/source/boost_1_76_0.tar.gz -O /tmp/boost.tar.gz && \
+RUN wget https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz -O /tmp/boost.tar.gz && \
 	tar xzvf /tmp/boost.tar.gz && \
-	cd boost_1_76_0 && \
+	cd boost_1_81_0 && \
 	./bootstrap.sh && \
 	./b2 install link=static && \
 	cd /home/dependencies
@@ -47,7 +47,7 @@ RUN git clone https://github.com/openssl/openssl.git && \
 	make all && \
 	cd /home/dependencies
 
-RUN git clone --branch v2.13.6 https://github.com/catchorg/Catch2.git && \
+RUN git clone --branch v3.7.0 https://github.com/catchorg/Catch2.git && \
 	cd Catch2 && \
 	mkdir build && \
 	cd build && \
@@ -89,7 +89,7 @@ WORKDIR /home/aws-iot-securetunneling-localproxy/
 
 ## Actual docker image
 
-FROM amazonlinux:latest
+FROM amazonlinux:2
 
 # Install openssl for libssl dependency.
 
