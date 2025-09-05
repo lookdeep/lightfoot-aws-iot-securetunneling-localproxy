@@ -1,0 +1,86 @@
+FROM ubuntu:noble
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && \
+    apt upgrade -y && \
+    apt-get install --no-install-recommends -y --no-remove \
+        autoconf \
+        autoconf-archive \
+        bash \
+        bc \
+        bison \
+        build-essential \
+        ccache \
+        cmake \
+        cpio \
+        devscripts \
+        debhelper \
+        dh-exec \
+        dpkg-dev \
+        fakeroot \
+        flex \
+        git \
+        git-buildpackage \
+        git-lfs \
+        kmod \
+        libelf-dev \
+        libssl-dev \
+        openssh-client \
+        pristine-lfs \
+        rsync \
+        sudo \
+        systemd \
+	wget \
+	zlib1g
+
+# RUN wget https://www.zlib.net/zlib-1.2.13.tar.gz -O /tmp/zlib-1.2.13.tar.gz && \
+# 	tar xzvf /tmp/zlib-1.2.13.tar.gz && \
+# 	cd zlib-1.2.13 && \
+# 	./configure && \
+# 	make && \
+# 	make install
+# 
+RUN wget https://archives.boost.io/release/1.87.0/source/boost_1_87_0.tar.gz -O /tmp/boost_1_87_0.tar.gz && \
+		tar xzvf /tmp/boost_1_87_0.tar.gz && \
+		cd boost_1_87_0 && \
+		./bootstrap.sh && \
+		./b2 install link=static
+
+RUN wget https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-all-3.17.3.tar.gz -O /tmp/protobuf-all-3.17.3.tar.gz && \
+		tar xzvf /tmp/protobuf-all-3.17.3.tar.gz && \
+		cd protobuf-3.17.3 && \
+		mkdir build && \
+		cd build && \
+		cmake ../cmake && \
+		make && \
+		make install
+
+RUN git clone --branch v3.7.0 https://github.com/catchorg/Catch2.git && \
+		cd Catch2 && \
+		mkdir build && \
+		cd build && \
+		cmake ../ && \
+		make && \
+		make install
+
+RUN mkdir localproxy
+
+# only copy source files; if we copy the whole directory it will rebuild every time
+COPY src localproxy/src/
+COPY resources localproxy/resources/
+COPY test localproxy/test/
+COPY CMakeLists* localproxy/
+
+RUN cd localproxy && \
+ 	rm -rf build/ && \
+ 	mkdir build && \
+ 	cd build && \
+ 	cmake ../ && \
+ 	make
+
+RUN echo "alias ll='ls -lrtF'" >> /root/.bashrc
+
