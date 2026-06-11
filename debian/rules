@@ -14,3 +14,11 @@ override_dh_auto_test:
 override_dh_auto_install:
 	# Skip auto install - handled by .install files
 
+
+# Binary-only packaging of a foreign-arch (arm64) prebuilt: host strip/shlibdeps
+# can't process it; deps are deliberately empty (static boost/protobuf).
+override_dh_strip:
+
+override_dh_shlibdeps:
+
+override_dh_makeshlibs:

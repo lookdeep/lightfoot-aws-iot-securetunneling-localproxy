@@ -1,3 +1,9 @@
+aws-iot-securetunneling-localproxy (3.1.2-2) resolute; urgency=medium
+
+  * arm64 binary (static boost 1.87, noble toolchain; runs on noble+resolute, NOT bookworm) for the lightfoot-resolute repo
+
+ -- James Eitzmann <james@lookdeep.health>  Thu, 11 Jun 2026 15:17:34 -0400
+
 aws-iot-securetunneling-localproxy (3.1.2) noble; urgency=medium
 
   * changed to binary packge built from docker images
